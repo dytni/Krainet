@@ -64,8 +64,8 @@ public class SecurityController {
         return ResponseEntity.ok("User created");
     }
 
-    @PostMapping("/signup")
-    ResponseEntity<?> signup(@RequestBody SigninRequest signinRequest) {
+    @PostMapping("/signin")
+    ResponseEntity<?> signin(@RequestBody SigninRequest signinRequest) {
         Authentication authentication = null;
         try {
             authentication = authenticationManager.authenticate(new UsernamePasswordAuthenticationToken(signinRequest.getUsername(), signinRequest.getPassword()));
