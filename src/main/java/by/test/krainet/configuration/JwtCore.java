@@ -25,22 +25,35 @@ public class JwtCore {
         UserDetailsImpl userDetails = (UserDetailsImpl) authentication.getPrincipal();
         return Jwts.builder()
                 .subject(userDetails.getUsername())
-                .subject(userDetails.getPassword())
                 .issuedAt(new Date())
                 .expiration(new Date((new Date()).getTime() + expires))
-                .signWith(getSigningKey()).compact();
+                .signWith(getSigningKey())
+                .compact();
     }
     private SecretKey getSigningKey() {
         byte[] keyBytes = this.token.getBytes(StandardCharsets.UTF_8);
+
         return Keys.hmacShaKeyFor(keyBytes);
     }
 
     public String getNameFromJwt(String jwt) {
-        return Jwts.parser()
-                .verifyWith(getSigningKey())
-                .build()
-                .parseSignedClaims(jwt)
-                .getPayload()
-                .getSubject();
+        try {
+            Claims claims = Jwts.parser()
+                    .verifyWith(getSigningKey())
+                    .build()
+                    .parseSignedClaims(jwt)
+                    .getPayload();
+            return claims.getSubject();
+        } catch (ExpiredJwtException ex) {
+            throw new SecurityException("JWT token expired", ex);
+        } catch (SignatureException ex) {
+            throw new SecurityException("Invalid JWT signature", ex);
+        } catch (JwtException | IllegalArgumentException ex) {
+            throw new SecurityException("Invalid JWT token", ex);
+        }
     }
+
+
+
+
 }

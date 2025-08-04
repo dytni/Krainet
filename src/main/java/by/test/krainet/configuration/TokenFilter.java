@@ -47,13 +47,17 @@ public class TokenFilter extends OncePerRequestFilter {
                 }
                 if(username != null && SecurityContextHolder.getContext().getAuthentication() == null) {
                     userDetails = userDetailsService.loadUserByUsername(username);
-                    authenticationToken = new UsernamePasswordAuthenticationToken(
-                            userDetails, null);
-                    SecurityContextHolder.getContext().setAuthentication(authenticationToken);
+                    UsernamePasswordAuthenticationToken authentication =
+                            new UsernamePasswordAuthenticationToken(
+                                    userDetails,
+                                    null,
+                                    userDetails.getAuthorities()
+                            );
+                    SecurityContextHolder.getContext().setAuthentication(authentication);
                 }
             }
         }catch (Exception e){
-            //
+            //e.printStackTrace();
         }
         filterChain.doFilter(request, response);
 

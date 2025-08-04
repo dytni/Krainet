@@ -3,6 +3,7 @@ package by.test.krainet.controllers;
 import by.test.krainet.configuration.JwtCore;
 import by.test.krainet.dto.SigninRequest;
 import by.test.krainet.dto.SignupRequest;
+import by.test.krainet.models.Roles;
 import by.test.krainet.models.User;
 import by.test.krainet.repository.UserRepository;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -18,6 +19,8 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+
+import java.util.Set;
 
 @RestController
 @RequestMapping("/auth")
@@ -60,6 +63,9 @@ public class SecurityController {
         user.setUsername(signupRequest.getUsername());
         user.setPassword(passwordEncoder.encode(signupRequest.getPassword()));
         user.setEmail(signupRequest.getEmail());
+        user.setRoles(Set.of(Roles.USER));
+        user.setFirstName(signupRequest.getFirstName());
+        user.setLastName(signupRequest.getLastName());
         userRepository.save(user);
         return ResponseEntity.ok("User created");
     }

@@ -6,7 +6,9 @@ import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
 
 import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
+import java.util.Set;
 
 @AllArgsConstructor
 @Data
@@ -16,6 +18,7 @@ public class UserDetailsImpl implements UserDetails {
     private String username;
     private String password;
     private String email;
+    private Set<Roles> roles;
 
 
     public static UserDetailsImpl build(User user)  {
@@ -23,13 +26,17 @@ public class UserDetailsImpl implements UserDetails {
                 user.getId(),
                 user.getUsername(),
                 user.getPassword(),
-                user.getEmail()
+                user.getEmail(),
+                user.getRoles()
         );
     }
 
     @Override
     public Collection<? extends GrantedAuthority> getAuthorities() {
-        return null;
+        if (roles == null) {
+            return Collections.emptyList();
+        }
+        return roles;
     }
 
     @Override
