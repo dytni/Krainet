@@ -4,6 +4,7 @@ import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import org.springframework.security.core.userdetails.UserDetails;
 
 import java.util.Set;
 
@@ -36,4 +37,16 @@ public class User {
     @Enumerated(EnumType.STRING)
     @Column(name = "role")
     private Set<Roles> roles;
+
+    public static User userFromDetails(UserDetailsImpl userDetails) {
+        User user = new User();
+        user.setId(userDetails.getId());
+        user.setUsername(userDetails.getUsername());
+        user.setPassword(userDetails.getPassword());
+        user.setRoles(userDetails.getRoles());
+        user.setEmail(userDetails.getEmail());
+        user.setFirstName(userDetails.getFirstName());
+        user.setLastName(userDetails.getLastName());
+        return user;
+    }
 }

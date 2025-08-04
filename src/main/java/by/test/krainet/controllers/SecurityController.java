@@ -66,6 +66,9 @@ public class SecurityController {
         user.setRoles(Set.of(Roles.USER));
         user.setFirstName(signupRequest.getFirstName());
         user.setLastName(signupRequest.getLastName());
+
+            //todo
+
         userRepository.save(user);
         return ResponseEntity.ok("User created");
     }

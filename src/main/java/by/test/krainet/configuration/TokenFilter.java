@@ -2,6 +2,7 @@ package by.test.krainet.configuration;
 
 
 import io.jsonwebtoken.ExpiredJwtException;
+import io.jsonwebtoken.JwtException;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -33,7 +34,6 @@ public class TokenFilter extends OncePerRequestFilter {
         String Jwt = null;
         String username = null;
         UserDetails userDetails = null;
-        UsernamePasswordAuthenticationToken authenticationToken = null;
         try{
             String authHeader = request.getHeader("Authorization");
             if (authHeader != null && authHeader.startsWith("Bearer ")) {
@@ -43,7 +43,8 @@ public class TokenFilter extends OncePerRequestFilter {
                 try {
                     username = jwtCore.getNameFromJwt(Jwt);
                 }catch (ExpiredJwtException e){
-                   // e.printStackTrace();
+                    response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "Token expired");
+                    return;
                 }
                 if(username != null && SecurityContextHolder.getContext().getAuthentication() == null) {
                     userDetails = userDetailsService.loadUserByUsername(username);
@@ -56,8 +57,9 @@ public class TokenFilter extends OncePerRequestFilter {
                     SecurityContextHolder.getContext().setAuthentication(authentication);
                 }
             }
-        }catch (Exception e){
-            //e.printStackTrace();
+        }catch (JwtException | IllegalArgumentException ex) {
+            response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "Invalid token");
+            return;
         }
         filterChain.doFilter(request, response);
 
