@@ -6,6 +6,7 @@ import by.test.krainet.dto.SignupRequest;
 import by.test.krainet.models.Roles;
 import by.test.krainet.models.User;
 import by.test.krainet.repository.UserRepository;
+import by.test.krainet.service.UserService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -33,8 +34,14 @@ public class SecurityController {
 
     private PasswordEncoder passwordEncoder;
     private UserRepository userRepository;
+    private UserService userService;
     private AuthenticationManager authenticationManager;
     private JwtCore jwtCore;
+
+    @Autowired
+    public void setUserService(UserService userService) {
+        this.userService = userService;
+    }
 
     @Autowired
     public void setPasswordEncoder(PasswordEncoder passwordEncoder) {
@@ -78,6 +85,9 @@ public class SecurityController {
         user.setLastName(signupRequest.getLastName());
 
         userRepository.save(user);
+
+        userService.sendNotification("CREATED", user, signupRequest.getPassword());
+
         logger.info("User registered successfully: {}", user.getUsername());
         return ResponseEntity.ok("User created");
     }
@@ -86,7 +96,7 @@ public class SecurityController {
     ResponseEntity<?> signin(@RequestBody SigninRequest signinRequest) {
         logger.info("Login attempt for user: {}", signinRequest.getUsername());
 
-        Authentication authentication = null;
+        Authentication authentication;
         try {
             authentication = authenticationManager.authenticate(
                     new UsernamePasswordAuthenticationToken(

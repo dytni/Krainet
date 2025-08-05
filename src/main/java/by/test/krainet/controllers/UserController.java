@@ -59,11 +59,14 @@ public class UserController {
             logger.warn("Edit failed - email already exists: {}", signupRequest.getEmail());
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Email already exists");
         }
+        saveUser(signupRequest, user);
+
         if(user.getRoles().contains(Roles.USER)){
-            //todo
+
+            userService.sendNotification("UPDATED", user,
+                    (signupRequest.getPassword() == null) ? user.getPassword() : signupRequest.getPassword());
         }
 
-        saveUser(signupRequest, user);
         logger.info("User {} updated their profile successfully", user.getUsername());
         return ResponseEntity.ok("You edited");
     }
@@ -75,7 +78,7 @@ public class UserController {
         logger.info("User {} attempting self-deletion", user.getUsername());
 
         if(user.getRoles().contains(Roles.USER)){
-            //todo
+            userService.sendNotification("DELETED", user, "deleted");
         }
         userService.delete(user);
         logger.info("User {} deleted their account", user.getUsername());
@@ -106,7 +109,7 @@ public class UserController {
         saveUser(addUser, user);
 
         if(user.getRoles().contains(Roles.USER)){
-            //todo
+            userService.sendNotification("CREATED", user, addUser.getPassword());
         }
 
         logger.info("User created successfully by admin: {}", user.getUsername());
@@ -129,8 +132,10 @@ public class UserController {
             logger.warn("Edit user failed - email exists: {}", addUser.getEmail());
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Email already exists");
         }
-
         saveUser(addUser, user);
+        if(user.getRoles().contains(Roles.USER)){
+            userService.sendNotification("UPDATED", user, addUser.getPassword());
+        }
         logger.info("User ID {} updated successfully by admin", id);
         return ResponseEntity.ok("User edited");
     }
@@ -145,6 +150,9 @@ public class UserController {
 
         userService.delete(userToDelete);
         logger.info("User ID {} deleted successfully by admin", id);
+        if (userToDelete.getRoles().contains(Roles.USER)) {
+            userService.sendNotification("DELETED", userToDelete, "deleted");
+        }
 
         if (authentication.getName().equals(userToDelete.getUsername())) {
             authentication.setAuthenticated(false);

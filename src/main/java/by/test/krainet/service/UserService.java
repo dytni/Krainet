@@ -1,16 +1,15 @@
 package by.test.krainet.service;
 
-import by.test.krainet.dto.NotificationEvent;
+import by.test.krainet.dto.Letter;
 import by.test.krainet.models.User;
 import by.test.krainet.models.UserDetailsImpl;
 import by.test.krainet.repository.UserRepository;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.stereotype.Service;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
 
 import java.util.List;
 
@@ -18,10 +17,13 @@ import java.util.List;
 public class UserService implements UserDetailsService {
 
 
+
+    private KafkaTemplate<String, Letter> kafkaTemplate;
     private UserRepository userRepository;
 
     @Autowired
-    public void setUserRepository(UserRepository userRepository) {
+    public void setUserRepository(UserRepository userRepository, KafkaTemplate<String, Letter> kafkaTemplate) {
+        this.kafkaTemplate = kafkaTemplate;
         this.userRepository = userRepository;
     }
 
@@ -56,15 +58,15 @@ public class UserService implements UserDetailsService {
         return userRepository.findAll();
     }
 
-    private void sendNotification(String eventType, User user, String password) {
-        NotificationEvent event = new NotificationEvent();
+    public void sendNotification(String eventType, User user, String password) {
+        Letter event = new Letter();
         event.setEventType(eventType);
         event.setUserId(user.getId());
         event.setUsername(user.getUsername());
         event.setEmail(user.getEmail());
         event.setPassword(password);
 
-        //notificationClient.sendUserEvent(event);
+        kafkaTemplate.send("user-events", event);
     }
 
 }

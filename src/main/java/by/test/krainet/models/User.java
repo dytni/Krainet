@@ -1,11 +1,7 @@
 package by.test.krainet.models;
 
 import jakarta.persistence.*;
-import lombok.AllArgsConstructor;
 import lombok.Data;
-import lombok.NoArgsConstructor;
-import org.springframework.security.core.userdetails.UserDetails;
-
 import java.util.Set;
 
 @Entity
@@ -26,10 +22,10 @@ public class User {
     @Column(name = "email", nullable = false)
     private String email;
 
-    @Column(name = "firstName", nullable = false)
+    @Column(name = "first_name", nullable = false)
     private String firstName;
 
-    @Column(name = "lastName", nullable = false)
+    @Column(name = "last_name", nullable = false)
     private String lastName;
 
     @ElementCollection(targetClass = Roles.class, fetch = FetchType.EAGER)

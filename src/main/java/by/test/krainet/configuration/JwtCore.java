@@ -46,8 +46,6 @@ public class JwtCore {
             return claims.getSubject();
         } catch (ExpiredJwtException ex) {
             throw new SecurityException("JWT token expired", ex);
-        } catch (SignatureException ex) {
-            throw new SecurityException("Invalid JWT signature", ex);
         } catch (JwtException | IllegalArgumentException ex) {
             throw new SecurityException("Invalid JWT token", ex);
         }
