@@ -6,6 +6,8 @@ import by.test.krainet.models.Roles;
 import by.test.krainet.models.User;
 import by.test.krainet.models.UserDetailsImpl;
 import by.test.krainet.service.UserService;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -17,11 +19,14 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
+
 @RestController
 @RequestMapping()
 public class UserController {
-    private final UserService userService;
 
+    private static final Logger logger = LoggerFactory.getLogger(UserController.class);
+
+    private final UserService userService;
     private final PasswordEncoder passwordEncoder;
 
     @Autowired
@@ -34,102 +39,129 @@ public class UserController {
     public ResponseEntity<User> getCurrentUser() {
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
         User user = User.userFromDetails((UserDetailsImpl) auth.getPrincipal());
+        logger.info("Current user retrieved: {}", user.getUsername());
         return new ResponseEntity<>(user, HttpStatus.OK);
     }
 
-
     @PutMapping("user/editMe")
     public ResponseEntity<?> editUser(@RequestBody SignupRequest signupRequest) {
-        Authentication authentication =  SecurityContextHolder.getContext().getAuthentication();
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         User user = User.userFromDetails((UserDetailsImpl) authentication.getPrincipal());
-        if(userService.existsByUsername(signupRequest.getUsername()) &&
+        logger.info("User {} attempting self-edit", user.getUsername());
+
+        if (userService.existsByUsername(signupRequest.getUsername()) &&
                 !signupRequest.getUsername().equals(user.getUsername())) {
+            logger.warn("Edit failed - username already exists: {}", signupRequest.getUsername());
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Username already exists");
         }
-        if(userService.existsByEmail(signupRequest.getEmail()) &&
-        !signupRequest.getEmail().equals(user.getEmail())) {
+        if (userService.existsByEmail(signupRequest.getEmail()) &&
+                !signupRequest.getEmail().equals(user.getEmail())) {
+            logger.warn("Edit failed - email already exists: {}", signupRequest.getEmail());
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Email already exists");
         }
         if(user.getRoles().contains(Roles.USER)){
             //todo
         }
+
         saveUser(signupRequest, user);
+        logger.info("User {} updated their profile successfully", user.getUsername());
         return ResponseEntity.ok("You edited");
     }
 
     @DeleteMapping("user/deleteMe")
     private ResponseEntity<?> deleteUser() {
-        Authentication authentication =  SecurityContextHolder.getContext().getAuthentication();
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         User user = User.userFromDetails((UserDetailsImpl) authentication.getPrincipal());
+        logger.info("User {} attempting self-deletion", user.getUsername());
+
         if(user.getRoles().contains(Roles.USER)){
             //todo
         }
         userService.delete(user);
+        logger.info("User {} deleted their account", user.getUsername());
         return ResponseEntity.ok("You deleted");
     }
 
+    @PreAuthorize("hasRole('ADMIN')")
     @PostMapping("users/add")
     public ResponseEntity<?> add(@RequestBody AddUser addUser) {
-        if(addUser.getFirstName() == null
-                || addUser.getLastName() == null
-        || addUser.getEmail() == null
-        || addUser.getPassword() == null
-        || addUser.getUsername() == null
-        || addUser.getRoles() == null) {
+        logger.info("Admin attempting to add new user: {}", addUser.getUsername());
+
+        if (addUser.getFirstName() == null || addUser.getLastName() == null ||
+                addUser.getEmail() == null || addUser.getPassword() == null ||
+                addUser.getUsername() == null || addUser.getRoles() == null) {
+            logger.warn("Add user failed - missing required fields");
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
         }
-        if(userService.existsByUsername(addUser.getUsername())){
+        if (userService.existsByUsername(addUser.getUsername())) {
+            logger.warn("Add user failed - username exists: {}", addUser.getUsername());
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Username already exists");
         }
-        if(userService.existsByEmail(addUser.getEmail())){
+        if (userService.existsByEmail(addUser.getEmail())) {
+            logger.warn("Add user failed - email exists: {}", addUser.getEmail());
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Email already exists");
         }
+
         User user = new User();
         saveUser(addUser, user);
+
         if(user.getRoles().contains(Roles.USER)){
             //todo
         }
+
+        logger.info("User created successfully by admin: {}", user.getUsername());
         return ResponseEntity.ok("User created");
     }
 
+    @PreAuthorize("hasRole('ADMIN')")
     @PutMapping("users/edit/{id}")
-    public ResponseEntity<?> edit(@RequestBody AddUser addUser,@PathVariable Long id) {
+    public ResponseEntity<?> edit(@RequestBody AddUser addUser, @PathVariable Long id) {
+        logger.info("Admin attempting to edit user ID: {}", id);
+
         User user = userService.getById(id);
-        if(userService.existsByUsername(addUser.getUsername()) &&
-                !addUser.getUsername().equals(user.getUsername())){
+        if (userService.existsByUsername(addUser.getUsername()) &&
+                !addUser.getUsername().equals(user.getUsername())) {
+            logger.warn("Edit user failed - username exists: {}", addUser.getUsername());
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Username already exists");
         }
-        if(userService.existsByEmail(addUser.getEmail()) &&
-        !addUser.getEmail().equals(user.getEmail())){
+        if (userService.existsByEmail(addUser.getEmail()) &&
+                !addUser.getEmail().equals(user.getEmail())) {
+            logger.warn("Edit user failed - email exists: {}", addUser.getEmail());
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Email already exists");
         }
-        if(user.getRoles().contains(Roles.USER)){
-            //todo
-        }
+
         saveUser(addUser, user);
+        logger.info("User ID {} updated successfully by admin", id);
         return ResponseEntity.ok("User edited");
     }
 
+    @PreAuthorize("hasRole('ADMIN')")
     @DeleteMapping("users/delete/{id}")
     public ResponseEntity<?> delete(@PathVariable Long id) {
-        Authentication authentication =  SecurityContextHolder.getContext().getAuthentication();
-        User userToDelete = userService.getById(id);
-        userService.delete(userToDelete);
-        if(userToDelete.getRoles().contains(Roles.USER)){
-            //todo
-        }
-        if(userToDelete.getId().equals(id)){
-            authentication.setAuthenticated(false);
-        }
-        return ResponseEntity.ok("User deleted");
+        logger.info("Admin attempting to delete user ID: {}", id);
 
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        User userToDelete = userService.getById(id);
+
+        userService.delete(userToDelete);
+        logger.info("User ID {} deleted successfully by admin", id);
+
+        if (authentication.getName().equals(userToDelete.getUsername())) {
+            authentication.setAuthenticated(false);
+            logger.info("Admin deleted their own account, session invalidated");
+        }
+
+        return ResponseEntity.ok("User deleted");
     }
+
+    @PreAuthorize("hasRole('ADMIN')")
     @GetMapping("users/show")
     public ResponseEntity<List<User>> show() {
-        return new ResponseEntity<>(userService.allUsers(), HttpStatus.OK);
+        logger.info("Admin requesting all users list");
+        List<User> users = userService.allUsers();
+        logger.info("Returning {} users", users.size());
+        return new ResponseEntity<>(users, HttpStatus.OK);
     }
-
-
 
     private void saveUser(AddUser addUser, User user) {
         if(addUser.getFirstName() != null && !addUser.getFirstName().isEmpty()){
