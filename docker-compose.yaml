@@ -1,18 +1,6 @@
 version: "3.9"
 
 services:
-  api:
-    build: .
-    ports:
-      - "8080:8080"
-    depends_on:
-      postgres:
-        condition: service_healthy
-    environment:
-      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/bd
-      SPRING_DATASOURCE_USERNAME: dytni
-      SPRING_DATASOURCE_PASSWORD: 1331
-
   postgres:
     image: postgres:15-alpine
     environment:
@@ -26,6 +14,84 @@ services:
       interval: 5s
       timeout: 5s
       retries: 10
+    networks:
+      - app-network
+
+  zookeeper:
+    image: confluentinc/cp-zookeeper:latest
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+    networks:
+      - app-network
+
+  kafka:
+    image: wurstmeister/kafka
+    ports:
+      - "9092:9092"
+    environment:
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: 'true'
+      KAFKA_ADVERTISED_LISTENERS: INSIDE://kafka:9093,OUTSIDE://host.docker.internal:9092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: INSIDE:PLAINTEXT,OUTSIDE:PLAINTEXT
+      KAFKA_LISTENERS: INSIDE://0.0.0.0:9093,OUTSIDE://0.0.0.0:9092
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_INTER_BROKER_LISTENER_NAME: INSIDE
+    depends_on:
+      - zookeeper
+    networks:
+      - app-network
+    healthcheck:
+      test: "timeout 10s bash -c 'cub kafka-ready 1 20' || exit 1"
+      interval: 10s
+      timeout: 20s
+      retries: 6
+      start_period: 40s
+
+  user-service:
+    build:
+      context: ./AUTH
+      dockerfile: Dockerfile
+    image: user-service:latest
+    ports:
+      - "8080:8080"
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/bd
+      SPRING_DATASOURCE_USERNAME: dytni
+      SPRING_DATASOURCE_PASSWORD: 1331
+      SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+    depends_on:
+      postgres:
+        condition: service_healthy
+      kafka:
+        condition: service_started
+    networks:
+      - app-network
+
+  notification-service:
+    build:
+      context: ./Notification
+      dockerfile: Dockerfile
+    image: notification-service:latest
+    ports:
+      - "8082:8080"
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/bd
+      SPRING_DATASOURCE_USERNAME: dytni
+      SPRING_DATASOURCE_PASSWORD: 1331
+      SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      SPRING_MAIL_USERNAME: ${SPRING_MAIL_USERNAME}
+      SPRING_MAIL_PASSWORD: ${SPRING_MAIL_PASSWORD}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      kafka:
+        condition: service_started
+    networks:
+      - app-network
 
 volumes:
   postgres_data:
+
+networks:
+  app-network:
+    driver: bridge
